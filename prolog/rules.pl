@@ -75,6 +75,6 @@ find_matches(Matches) :-
 
 % Rule 18: Compare confidence levels for sorting descending
 compare_confidence(Order, [_, _, Conf1], [_, _, Conf2]) :-
-    (Conf1 < Conf2 -> Order = >
-    ; Conf1 > Conf2 -> Order = <
-    ; Order = =).
+    (Conf1 < Conf2 -> Order = (>)
+    ; Conf1 > Conf2 -> Order = (<)
+    ; Order = (=)).

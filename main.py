@@ -53,19 +53,28 @@ def diagnose():
     if not symptoms:
         return jsonify({'success': False, 'message': 'No symptoms provided.'}), 400
         
-    if not inference_engine:
+    if not inference_engine or not inference_engine.connector.available:
         # Graceful fallback: If Prolog isn't installed in Vercel container, 
         # let's run a fallback pythonic matching so the user gets a working diagnosis!
         from backend.rag_engine import MEDICAL_CORPUS
         diagnoses = []
         for disease, info in MEDICAL_CORPUS.items():
-            matches = set(symptoms).intersection(set(info['symptoms']))
+            # Normalize symptoms by replacing spaces with underscores and lowercase
+            normalized_db_symptoms = {s.replace(" ", "_").lower() for s in info['symptoms']}
+            normalized_query_symptoms = {s.replace(" ", "_").lower() for s in symptoms}
+            
+            matches = normalized_query_symptoms.intersection(normalized_db_symptoms)
             if matches:
                 conf = (len(matches) / max(len(info['symptoms']), 1)) * 100
+                
+                # Format matched symptoms back to nice display strings
+                display_matches = [m.replace("_", " ").title() for m in matches]
+                
                 diagnoses.append({
                     'disease': disease,
                     'confidence': conf,
-                    'explanation': f"Determined via pythonic fallback matching of {len(matches)} overlapping symptom(s).",
+                    'matched_symptoms': list(matches),
+                    'explanation': f"🔍 Pythonic Diagnostic Trace\n==============================================\nDeducted Target: {disease.upper()}\n\nPatient Symptoms Triggered:\n" + "\n".join([f"  ✔ {m} -> Confirmed Present" for m in display_matches]),
                     'details': {
                         'recommendations': info['recommendations'],
                         'medicines': info['medicines'],
