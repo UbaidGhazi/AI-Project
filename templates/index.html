@@ -55,12 +55,12 @@
                     <div class="grid-stats">
                         <div class="stat-card">
                             <h3>Total Facts</h3>
-                            <div class="value">34</div>
+                            <div class="value">35</div>
                             <span class="subtext">Dynamic Prolog Facts</span>
                         </div>
                         <div class="stat-card">
                             <h3>Total Rules</h3>
-                            <div class="value">24</div>
+                            <div class="value">18</div>
                             <span class="subtext">Logical Rules Loaded</span>
                         </div>
                         <div class="stat-card">
@@ -116,7 +116,7 @@
                         <div class="chat-header">
                             <div class="chat-status">
                                 <h3>IntelliBot</h3>
-                                <span>RAG-Powered Offline medical chatbot</span>
+                                <span>RAG-Powered medical chatbot (Offline RAG / Gemini Auto-detect)</span>
                             </div>
                         </div>
                         <div class="chat-messages" id="chat-messages-container">
@@ -209,6 +209,18 @@
                 <section id="tab-settings" class="tab-pane">
                     <div class="card settings-card">
                         <h2>System Control Panel</h2>
+                        
+                        <div class="settings-group">
+                            <h3>🤖 Google Gemini API Configuration</h3>
+                            <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                                <label>Provide your Google Gemini API Key to upgrade your RAG chat experience to medical-grade AI conversations.</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="password" id="settings-gemini-key" placeholder="Enter Gemini API Key..." style="flex-grow: 1; padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px;">
+                                    <button class="btn btn-primary" id="btn-save-api-key">Save Key</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="settings-group">
                             <h3>🎨 Theme Selection</h3>
                             <div class="settings-row">

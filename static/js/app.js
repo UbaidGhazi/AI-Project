@@ -9,6 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
     setupReports();
     setupSettings();
     updateDashboardStats();
+    
+    // Auto load API key on startup
+    const savedKey = localStorage.getItem("gemini_api_key");
+    if (savedKey) {
+        document.getElementById("settings-gemini-key").value = savedKey;
+        saveApiKeyToBackend(savedKey);
+    }
 });
 
 // ── Tab Management ───────────────────────────────────────────────────────────
@@ -187,7 +194,7 @@ function setupChatbot() {
     const btn = document.getElementById("btn-send-chat");
     const container = document.getElementById("chat-messages-container");
 
-    const welcome = `👋 Hello! I am <b>IntelliBot</b>, your offline hybrid AI assistant. 
+    const welcome = `👋 Hello! I am <b>IntelliBot</b>, your hybrid AI assistant. 
     I can answer detailed medical questions based on our integrated Prolog rule-base and clinical history. 
     <br><br>
     Feel free to query me about symptoms, precautions, treatments or medicines!`;
@@ -412,6 +419,29 @@ function setupSettings() {
     const savedTheme = localStorage.getItem("theme") || "light";
     themeSelect.value = savedTheme;
     document.documentElement.setAttribute("data-theme", savedTheme);
+
+    // Save API key
+    const btnSaveKey = document.getElementById("btn-save-api-key");
+    const keyInput = document.getElementById("settings-gemini-key");
+
+    btnSaveKey.addEventListener("click", () => {
+        const key = keyInput.value.trim();
+        localStorage.setItem("gemini_api_key", key);
+        saveApiKeyToBackend(key);
+        alert("Gemini API key saved and activated successfully!");
+    });
+}
+
+async function saveApiKeyToBackend(key) {
+    try {
+        await fetch("/api/set_api_key", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ api_key: key })
+        });
+    } catch (e) {
+        console.error("Failed to sync API key to server", e);
+    }
 }
 
 // ── Update General Dashboard Statistics ─────────────────────────────────────

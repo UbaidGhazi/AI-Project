@@ -38,13 +38,24 @@ def index():
 def get_symptoms():
     return jsonify(ALL_SYMPTOMS)
 
+@app.route('/api/set_api_key', methods=['POST'])
+def set_api_key():
+    data = request.json
+    api_key = data.get('api_key', '')
+    rag_engine.set_api_key(api_key)
+    return jsonify({'success': True})
+
 @app.route('/api/diagnose', methods=['POST'])
 def diagnose():
+    data = request.json
+    symptoms = data.get('symptoms', [])
+    
+    if not symptoms:
+        return jsonify({'success': False, 'message': 'No symptoms provided.'}), 400
+        
     if not inference_engine:
         # Graceful fallback: If Prolog isn't installed in Vercel container, 
         # let's run a fallback pythonic matching so the user gets a working diagnosis!
-        symptoms = request.json.get('symptoms', [])
-        # We can implement a clean python fallback match
         from backend.rag_engine import MEDICAL_CORPUS
         diagnoses = []
         for disease, info in MEDICAL_CORPUS.items():
@@ -71,12 +82,6 @@ def diagnose():
             'success': True,
             'diagnoses': diagnoses
         })
-        
-    data = request.json
-    symptoms = data.get('symptoms', [])
-    
-    if not symptoms:
-        return jsonify({'success': False, 'message': 'No symptoms provided.'}), 400
         
     diagnoses = inference_engine.diagnose(symptoms)
     

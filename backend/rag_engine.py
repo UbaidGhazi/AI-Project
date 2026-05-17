@@ -1,10 +1,13 @@
 """
 rag_engine.py
-Retrieval-Augmented Generation engine using the local medical knowledge base.
-Works fully offline — no external AI API needed.
+Retrieval-Augmented Generation engine using the local medical knowledge base and Google Gemini integration.
+Allows API key entry and automatically falls back to offline local RAG matching if no key is supplied.
 """
 
 import re
+import json
+import urllib.request
+import os
 from collections import Counter
 
 # ── Comprehensive Medical Knowledge Corpus ──────────────────────────────────
@@ -91,25 +94,21 @@ MEDICAL_CORPUS = {
     },
 }
 
-
 class RAGEngine:
-    """
-    Offline Retrieval-Augmented Generation engine.
-    Retrieves relevant medical knowledge chunks and formats natural-language answers.
-    """
-
     def __init__(self):
         self.corpus = MEDICAL_CORPUS
         self.query_processor = None
+        self.api_key = os.environ.get("GEMINI_API_KEY", "")
         self._build_index()
 
     def set_query_processor(self, qp):
         self.query_processor = qp
 
-    # ── Indexing ─────────────────────────────────────────────────────────────
+    def set_api_key(self, key):
+        self.api_key = key.strip()
 
     def _build_index(self):
-        self.index: dict[str, list[str]] = {}
+        self.index = {}
         for disease, info in self.corpus.items():
             keywords = (
                 [disease]
@@ -130,7 +129,7 @@ class RAGEngine:
 
     def _retrieve(self, query: str) -> list[str]:
         tokens = self._tokenize(query)
-        scores: Counter = Counter()
+        scores = Counter()
         for token in tokens:
             if token in self.index:
                 for d in self.index[token]:
@@ -174,7 +173,7 @@ class RAGEngine:
 
         if intent == "greeting":
             return (
-                "👋 Hello! I'm **IntelliBot**, your AI Medical Assistant.\n\n"
+                "👋 Hello! I'm **IntelliBot**, your hybrid AI Medical Assistant.\n\n"
                 "I can answer questions about:\n"
                 "• Symptoms of any disease in the knowledge base\n"
                 "• Medicines and treatments\n"
@@ -207,12 +206,51 @@ class RAGEngine:
                 + "\n\nAsk me about any of these!"
             )
 
+        # Retrieve local context
         relevant = self._retrieve(user_message)
+        context_str = ""
+        if relevant:
+            context_data = [self.corpus[d] for d in relevant]
+            context_str = "Local Knowledge Base context:\n" + json.dumps(context_data, indent=2)
+
+        # Google Gemini Integration (if API key provided)
+        if self.api_key:
+            gemini_response = self._query_gemini(user_message, context_str)
+            if gemini_response:
+                return gemini_response
+
+        # Fallback to local offline RAG
         if not relevant:
             return self._fallback()
 
         parts = [self._format_response(d, self.corpus[d], intent, user_message) for d in relevant[:2]]
         return "\n\n─────────────────\n\n".join(parts)
+
+    def _query_gemini(self, message: str, context: str) -> str:
+        prompt = (
+            "You are a friendly, highly intelligent medical expert system assistant. "
+            "Help the patient answer their question with professional care. "
+            "Use the following verified knowledge base context to enrich your answer if applicable. "
+            "Always direct the patient to see a doctor for serious symptoms.\n\n"
+            f"{context}\n\n"
+            f"User Question: {message}"
+        )
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
+        headers = {"Content-Type": "application/json"}
+        body = {
+            "contents": [
+                {"parts": [{"text": prompt}]}
+            ]
+        }
+        
+        req = urllib.request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(req, timeout=8) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                return res_data['candidates'][0]['content']['parts'][0]['text']
+        except Exception as e:
+            print(f"[WARN] Gemini API request failed: {e}")
+            return None
 
     def _history_response(self) -> str:
         if not self.query_processor:

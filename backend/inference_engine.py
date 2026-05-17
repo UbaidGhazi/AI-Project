@@ -9,7 +9,7 @@ class InferenceEngine:
         for s in symptoms:
             self.connector.assert_symptom(s)
             
-        results = self.connector.query("diagnose(Matches)")
+        results = self.connector.query("evaluate_diagnosis(Matches)")
         
         diagnoses = []
         if results and results[0].get('Matches'):
