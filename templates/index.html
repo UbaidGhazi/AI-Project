@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntelliExpert AI - Hybrid Symbolic Intelligence System</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for beautiful real-time analytics in the web portal -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-icon">🤖</div>
+                <div>
+                    <h2>IntelliExpert</h2>
+                    <span>AI Medical Platform</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="dashboard">🏠 Dashboard</button>
+                <button class="nav-item" data-tab="diagnosis">🩺 Diagnosis</button>
+                <button class="nav-item" data-tab="chatbot">💬 AI Chatbot</button>
+                <button class="nav-item" data-tab="analysis">📊 AI Analysis</button>
+                <button class="nav-item" data-tab="reports">📋 Reports</button>
+                <button class="nav-item" data-tab="knowledge">📚 Knowledge Base</button>
+                <button class="nav-item" data-tab="history">🕐 Query History</button>
+                <button class="nav-item" data-tab="settings">⚙️ Settings</button>
+            </nav>
+            <div class="sidebar-footer">
+                <span>v1.0 • Symbolic AI</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="navbar">
+                <div class="nav-title">
+                    <h1 id="page-title">Dashboard Overview</h1>
+                </div>
+                <div class="nav-actions">
+                    <span class="status-indicator online">● AI Online</span>
+                </div>
+            </header>
+
+            <!-- Dynamic Content Container -->
+            <div class="content-body">
+                <!-- Dashboard Tab -->
+                <section id="tab-dashboard" class="tab-pane active">
+                    <div class="grid-stats">
+                        <div class="stat-card">
+                            <h3>Total Facts</h3>
+                            <div class="value">34</div>
+                            <span class="subtext">Dynamic Prolog Facts</span>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Rules</h3>
+                            <div class="value">24</div>
+                            <span class="subtext">Logical Rules Loaded</span>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Diagnoses Run</h3>
+                            <div class="value" id="stat-count">0</div>
+                            <span class="subtext">Queries Logged to DB</span>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Avg AI Confidence</h3>
+                            <div class="value" id="stat-avg-confidence">94.2%</div>
+                            <span class="subtext">Diagnostic Certainty</span>
+                        </div>
+                    </div>
+
+                    <div class="hero-banner">
+                        <div class="hero-text">
+                            <h2>Welcome to IntelliExpert AI</h2>
+                            <p>A hybrid symbolic AI engine combining logic-based inference (Prolog) and modern RAG context engines to assist clinical diagnostic pathways.</p>
+                            <button class="btn btn-primary" onclick="switchTab('diagnosis')">Begin Diagnosis Engine →</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Diagnosis Tab -->
+                <section id="tab-diagnosis" class="tab-pane">
+                    <div class="card diagnosis-box">
+                        <h2>Select Observed Symptoms</h2>
+                        <p class="description">Select all relevant symptoms to evaluate with Prolog logical rules.</p>
+                        
+                        <div class="symptom-grid" id="symptom-checkboxes">
+                            <!-- Symptom chips will be generated dynamically -->
+                        </div>
+
+                        <div class="progress-bar-container" id="diagnosis-progress" style="display: none;">
+                            <div class="progress-bar-fill"></div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn btn-primary" id="btn-run-diagnosis">Run AI Inference Engine</button>
+                        </div>
+                    </div>
+
+                    <!-- Diagnosis Results Container -->
+                    <div class="results-container" id="diagnosis-results" style="display: none;">
+                        <h2 class="section-title">AI Diagnosis Report</h2>
+                        <div id="results-cards-list"></div>
+                    </div>
+                </section>
+
+                <!-- Chatbot Tab -->
+                <section id="tab-chatbot" class="tab-pane">
+                    <div class="chat-wrapper">
+                        <div class="chat-header">
+                            <div class="chat-status">
+                                <h3>IntelliBot</h3>
+                                <span>RAG-Powered Offline medical chatbot</span>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chat-messages-container">
+                            <!-- Initial Greeting -->
+                        </div>
+                        <div class="chat-input-bar">
+                            <input type="text" id="chat-input" placeholder="Ask me about symptoms, precautions, treatments or medicines...">
+                            <button class="btn btn-primary" id="btn-send-chat">Send →</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analysis Tab -->
+                <section id="tab-analysis" class="tab-pane">
+                    <div class="grid-stats">
+                        <div class="card chart-card">
+                            <h3>Diagnoses Share</h3>
+                            <canvas id="chart-diseases"></canvas>
+                        </div>
+                        <div class="card chart-card">
+                            <h3>Diagnostic Confidence Distribution</h3>
+                            <canvas id="chart-confidence"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Reports Tab -->
+                <section id="tab-reports" class="tab-pane">
+                    <div class="card reports-container">
+                        <div class="table-header">
+                            <h2>Recorded Clinical Audits</h2>
+                            <button class="btn btn-primary" id="btn-download-pdf">⬇ Download PDF Audit Report</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table" id="table-reports">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Observed Symptoms</th>
+                                        <th>Diagnosis</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Log data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Knowledge Base Tab -->
+                <section id="tab-knowledge" class="tab-pane">
+                    <div class="kb-header">
+                        <input type="text" id="kb-search" placeholder="🔍 Search diseases, symptoms, or medications...">
+                    </div>
+                    <div class="kb-grid" id="kb-cards-container">
+                        <!-- Loaded from API -->
+                    </div>
+                </section>
+
+                <!-- Query History Tab -->
+                <section id="tab-history" class="tab-pane">
+                    <div class="card history-container">
+                        <div class="table-header">
+                            <h2>Interaction logs</h2>
+                            <button class="btn btn-danger" id="btn-clear-history">🗑 Clear History Logs</button>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table" id="table-history">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>Symptoms</th>
+                                        <th>Diagnosis</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings Tab -->
+                <section id="tab-settings" class="tab-pane">
+                    <div class="card settings-card">
+                        <h2>System Control Panel</h2>
+                        <div class="settings-group">
+                            <h3>🎨 Theme Selection</h3>
+                            <div class="settings-row">
+                                <label>Interface Styling Theme</label>
+                                <select class="form-select" id="settings-theme">
+                                    <option value="light">Premium Light + Glow Blue</option>
+                                    <option value="dark">Futuristic Dark Mode</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h3>ℹ️ System Details</h3>
+                            <div class="system-details-grid">
+                                <div><strong>Framework:</strong> Flask Web UI Engine</div>
+                                <div><strong>Backend:</strong> Python 3.12</div>
+                                <div><strong>Inference Core:</strong> SWI-Prolog Rules engine</div>
+                                <div><strong>Storage:</strong> SQLite DB history.db</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Frontend logic script -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

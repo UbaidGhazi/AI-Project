@@ -1,4 +1,4 @@
-PySide6
+Flask
 pyswip
 matplotlib
 reportlab
