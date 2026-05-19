@@ -274,9 +274,12 @@ class RAGEngine:
                 + "\n\nAsk me about any of these!"
             )
 
+        # Retrieve local relevant diseases semantically
+        relevant_diseases = self._retrieve(user_message)
+        
         # 1. Fetch live search insights
         search_results = self._search_web(user_message)
-        search_str = "\n".join([f"• {r}" for r in search_results]) if search_results else "• No real-time search insights retrieved. Using static medical corpus."
+        search_str = "\n".join([f"• {r}" for r in search_results]) if search_results else ""
 
         # 2. Extract symptoms and apply Symbolic rules using PythonRuleEngine fallback
         from utils.constants import ALL_SYMPTOMS
@@ -307,17 +310,24 @@ class RAGEngine:
                 precautions = rule_engine.get_precautions(top_disease)
                 care_guidelines = rule_engine.get_care_guidelines(top_disease)
         else:
-            # If no direct symptoms mentioned, check if a disease name is mentioned
+            # Check if a disease name is directly mentioned in query or relevant local retrieval
+            target_disease = None
             for disease in self.corpus.keys():
                 if disease in user_message.lower():
-                    safe_medicines = rule_engine.get_safe_medicines(disease)
-                    precautions = rule_engine.get_precautions(disease)
-                    care_guidelines = rule_engine.get_care_guidelines(disease)
+                    target_disease = disease
                     break
+            if not target_disease and relevant_diseases:
+                target_disease = relevant_diseases[0]
+                
+            if target_disease:
+                safe_medicines = rule_engine.get_safe_medicines(target_disease)
+                precautions = rule_engine.get_precautions(target_disease)
+                care_guidelines = rule_engine.get_care_guidelines(target_disease)
 
         # Format detailed medical context
         clinical_context = {
             "web_search_insights": search_results,
+            "local_corpus_matches": [self.corpus[d] for d in relevant_diseases if d in self.corpus],
             "suspected_diagnoses": diagnoses[:2] if diagnoses else "None",
             "patient_symptoms": [s.replace("_", " ").title() for s in mentioned_symptoms],
             "threat_level": threat_level.upper(),
@@ -334,9 +344,25 @@ class RAGEngine:
                 return gemini_response
 
         # 4. Fallback offline response formatting (if no Gemini API key)
-        resp = "🔍 **Google Search Insights (Live DDG):**\n"
-        resp += f"{search_str}\n\n"
+        resp = ""
         
+        # Add live search if available
+        if search_str:
+            resp += "🔍 **Google Search Insights (Live DDG):**\n"
+            resp += f"{search_str}\n\n"
+            
+        # Add rich local corpus details
+        if relevant_diseases:
+            resp += "📖 **Clinical Corpus Details:**\n"
+            for d in relevant_diseases[:2]:
+                if d in self.corpus:
+                    info = self.corpus[d]
+                    resp += f"• **{info['full_name']}** ({info['severity']} Severity):\n"
+                    resp += f"  *Description:* {info['description']}\n"
+                    resp += f"  *Contagious:* {'Yes' if info['contagious'] else 'No'}\n"
+                    resp += f"  *Common Symptoms:* {', '.join(info['symptoms'])}\n"
+            resp += "\n"
+            
         if mentioned_symptoms:
             resp += "⚙️ **Symbolic AI Diagnostics & Inference Rules:**\n"
             resp += f"• **Patient Severity Risk:** {threat_level.upper()}\n"
@@ -363,8 +389,12 @@ class RAGEngine:
                 resp += f"• ❌ {w['Med'].upper()} is contraindicated for patients experiencing '{w['Symptom'].replace('_', ' ').capitalize()}'\n"
             resp += "\n"
 
+        if not resp:
+            return self._fallback()
+
         resp += "⚠️ *Disclaimer: This clinical AI provides diagnostic insights based on symbolic medical rules. Always consult a licensed physician for real clinical issues.*"
         return resp
+
 
     def _query_gemini(self, message: str, context: str) -> str:
         prompt = (

@@ -66,12 +66,21 @@ class PrologConnector:
     def assert_symptom(self, symptom):
         if not self._ensure_loaded():
             return
-        list(self.prolog.query(f"assertz(symptom({symptom}))"))
+        try:
+            list(self.prolog.query(f"assertz(symptom({symptom}))"))
+        except Exception as e:
+            print(f"[WARN] Prolog assertz symptom failed ({symptom}): {e}")
+            raise e
 
     def retract_all_symptoms(self):
         if not self._ensure_loaded():
             return
-        list(self.prolog.query("retractall(symptom(_))"))
+        try:
+            list(self.prolog.query("retractall(symptom(_))"))
+        except Exception as e:
+            print(f"[WARN] Prolog retractall symptoms failed: {e}")
+            raise e
+
 
     def query(self, query_string):
         if not self._ensure_loaded():

@@ -8,24 +8,29 @@ class InferenceEngine:
 
     def diagnose(self, symptoms):
         if self.connector.available:
-            self.connector.retract_all_symptoms()
-            for s in symptoms:
-                self.connector.assert_symptom(s)
+            try:
+                self.connector.retract_all_symptoms()
+                for s in symptoms:
+                    self.connector.assert_symptom(s)
+                    
+                results = self.connector.query("evaluate_diagnosis(Matches)")
                 
-            results = self.connector.query("evaluate_diagnosis(Matches)")
-            
-            diagnoses = []
-            if results and results[0].get('Matches'):
-                for match in results[0]['Matches']:
-                    disease = match[0]
-                    matched_symptoms = [str(s) for s in match[1]]
-                    confidence = float(match[2])
-                    diagnoses.append({
-                        'disease': str(disease),
-                        'matched_symptoms': matched_symptoms,
-                        'confidence': confidence
-                    })
-            return diagnoses
+                diagnoses = []
+                if results and results[0].get('Matches'):
+                    for match in results[0]['Matches']:
+                        disease = match[0]
+                        matched_symptoms = [str(s) for s in match[1]]
+                        confidence = float(match[2])
+                        diagnoses.append({
+                            'disease': str(disease),
+                            'matched_symptoms': matched_symptoms,
+                            'confidence': confidence
+                        })
+                return diagnoses
+            except Exception as e:
+                print(f"[WARN] Prolog diagnosis failed, falling back to Python: {e}")
+                return self.fallback.diagnose(symptoms)
         else:
             return self.fallback.diagnose(symptoms)
+
 
