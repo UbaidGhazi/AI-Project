@@ -174,13 +174,14 @@ class MainWindow(QMainWindow):
 
     def process_diagnosis(self, symptoms: list[str]):
         if self.inference_engine is None:
-            QMessageBox.warning(
-                self, "Prolog Unavailable",
-                "SWI-Prolog is not installed or not found in PATH.\n\n"
-                "Install SWI-Prolog from https://www.swi-prolog.org and\n"
-                "add its bin/ directory to the system PATH, then restart."
-            )
-            return
+            self._init_engines()
+            if self.inference_engine is None:
+                QMessageBox.critical(
+                    self, "System Error",
+                    "Could not initialize the logical inference diagnostic engine."
+                )
+                return
+
 
         diagnoses = self.inference_engine.diagnose(symptoms)
 

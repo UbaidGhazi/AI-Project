@@ -206,34 +206,178 @@ class RAGEngine:
                 + "\n\nAsk me about any of these!"
             )
 
-        # Retrieve local context
-        relevant = self._retrieve(user_message)
-        context_str = ""
-        if relevant:
-            context_data = [self.corpus[d] for d in relevant]
-            context_str = "Local Knowledge Base context:\n" + json.dumps(context_data, indent=2)
+    def _search_web(self, query: str) -> list[str]:
+        try:
+            import urllib.parse
+            # Standardize query
+            q = query.strip()
+            # Clean up query
+            q_clean = re.sub(r"[^\w\s]", " ", q).strip()
+            search_query = q_clean + " medical clinical symptoms treatment"
+            url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(search_query)
+            
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=5) as response:
+                html = response.read().decode('utf-8', errors='ignore')
+                snippets = re.findall(r'<a class="result__snippet"[^>]*>(.*?)</a>', html, re.DOTALL)
+                results = []
+                for s in snippets[:3]:
+                    clean = re.sub(r'<[^>]*>', '', s)
+                    clean = clean.replace('&amp;', '&').replace('&quot;', '"').replace('&#x27;', "'").replace('&apos;', "'").strip()
+                    if clean:
+                        results.append(clean)
+                return results
+        except Exception as e:
+            print(f"[WARN] DDG Web search failed: {e}")
+            return []
 
-        # Google Gemini Integration (if API key provided)
+    def chat(self, user_message: str) -> str:
+        intent = self._detect_intent(user_message)
+
+        if intent == "greeting":
+            return (
+                "👋 Hello! I'm **IntelliBot**, your hybrid AI Medical Assistant.\n\n"
+                "I can answer questions about:\n"
+                "• Symptoms of any disease in the knowledge base\n"
+                "• Medicines and treatments\n"
+                "• Precautions and preventive measures\n"
+                "• Your past diagnosis history\n\n"
+                "How can I help you today?"
+            )
+
+        if intent == "help":
+            return (
+                "🤖 **Here are some things you can ask me:**\n\n"
+                "• *What are the symptoms of flu?*\n"
+                "• *What medicines are used for migraine?*\n"
+                "• *How do I prevent COVID-19?*\n"
+                "• *Tell me about diabetes*\n"
+                "• *Show my diagnosis history*\n"
+                "• *List all diseases*\n"
+                "• *Is pneumonia contagious?*\n"
+                "• *How severe is asthma?*"
+            )
+
+        if intent == "history":
+            return self._history_response()
+
+        if intent == "list_diseases":
+            names = [f"• {info['full_name']}" for info in self.corpus.values()]
+            return (
+                f"🏥 **Diseases in Knowledge Base ({len(names)} total):**\n\n"
+                + "\n".join(names)
+                + "\n\nAsk me about any of these!"
+            )
+
+        # 1. Fetch live search insights
+        search_results = self._search_web(user_message)
+        search_str = "\n".join([f"• {r}" for r in search_results]) if search_results else "• No real-time search insights retrieved. Using static medical corpus."
+
+        # 2. Extract symptoms and apply Symbolic rules using PythonRuleEngine fallback
+        from utils.constants import ALL_SYMPTOMS
+        from backend.python_rule_engine import PythonRuleEngine
+        
+        rule_engine = PythonRuleEngine()
+        q_clean = user_message.lower().replace(" ", "_")
+        mentioned_symptoms = []
+        for sym in ALL_SYMPTOMS:
+            space_sym = sym.replace("_", " ")
+            if sym in q_clean or space_sym in user_message.lower():
+                mentioned_symptoms.append(sym)
+                
+        diagnoses = []
+        threat_level = "normal"
+        warnings = []
+        safe_medicines = []
+        precautions = []
+        care_guidelines = []
+        
+        if mentioned_symptoms:
+            diagnoses = rule_engine.diagnose(mentioned_symptoms)
+            threat_level = rule_engine.get_threat_level()
+            warnings = rule_engine.get_medication_warnings()
+            if diagnoses:
+                top_disease = diagnoses[0]['disease']
+                safe_medicines = rule_engine.get_safe_medicines(top_disease)
+                precautions = rule_engine.get_precautions(top_disease)
+                care_guidelines = rule_engine.get_care_guidelines(top_disease)
+        else:
+            # If no direct symptoms mentioned, check if a disease name is mentioned
+            for disease in self.corpus.keys():
+                if disease in user_message.lower():
+                    safe_medicines = rule_engine.get_safe_medicines(disease)
+                    precautions = rule_engine.get_precautions(disease)
+                    care_guidelines = rule_engine.get_care_guidelines(disease)
+                    break
+
+        # Format detailed medical context
+        clinical_context = {
+            "web_search_insights": search_results,
+            "suspected_diagnoses": diagnoses[:2] if diagnoses else "None",
+            "patient_symptoms": [s.replace("_", " ").title() for s in mentioned_symptoms],
+            "threat_level": threat_level.upper(),
+            "suggested_medicines": [m.title() for m in safe_medicines],
+            "care_guidelines": care_guidelines,
+            "precautions": precautions,
+            "contraindications": [{"medicine": w["Med"].title(), "unsafe_due_to": w["Symptom"].replace("_", " ").title()} for w in warnings]
+        }
+
+        # 3. Google Gemini Integration (if API key provided)
         if self.api_key:
-            gemini_response = self._query_gemini(user_message, context_str)
+            gemini_response = self._query_gemini(user_message, json.dumps(clinical_context, indent=2))
             if gemini_response:
                 return gemini_response
 
-        # Fallback to local offline RAG
-        if not relevant:
-            return self._fallback()
+        # 4. Fallback offline response formatting (if no Gemini API key)
+        resp = "🔍 **Google Search Insights (Live DDG):**\n"
+        resp += f"{search_str}\n\n"
+        
+        if mentioned_symptoms:
+            resp += "⚙️ **Symbolic AI Diagnostics & Inference Rules:**\n"
+            resp += f"• **Patient Severity Risk:** {threat_level.upper()}\n"
+            if diagnoses:
+                matches_str = ", ".join([f"{d['disease'].title()} ({d['confidence']:.1f}%)" for d in diagnoses[:2]])
+                resp += f"• **Deducted Target(s):** {matches_str}\n"
+            resp += "\n"
 
-        parts = [self._format_response(d, self.corpus[d], intent, user_message) for d in relevant[:2]]
-        return "\n\n─────────────────\n\n".join(parts)
+        if safe_medicines:
+            resp += "💊 **Recommended Safe Medications:**\n"
+            resp += "\n".join([f"• {m.title()}" for m in safe_medicines]) + "\n\n"
+
+        if precautions or care_guidelines:
+            resp += "🛡️ **Care Guidelines & Precautions:**\n"
+            for g in care_guidelines:
+                resp += f"• Care: {g}\n"
+            for p in precautions:
+                resp += f"• Precaution: {p}\n"
+            resp += "\n"
+
+        if warnings:
+            resp += "🚨 **Contraindications & Safety Warnings:**\n"
+            for w in warnings:
+                resp += f"• ❌ {w['Med'].upper()} is contraindicated for patients experiencing '{w['Symptom'].replace('_', ' ').capitalize()}'\n"
+            resp += "\n"
+
+        resp += "⚠️ *Disclaimer: This clinical AI provides diagnostic insights based on symbolic medical rules. Always consult a licensed physician for real clinical issues.*"
+        return resp
 
     def _query_gemini(self, message: str, context: str) -> str:
         prompt = (
-            "You are a friendly, highly intelligent medical expert system assistant. "
-            "Help the patient answer their question with professional care. "
-            "Use the following verified knowledge base context to enrich your answer if applicable. "
-            "Always direct the patient to see a doctor for serious symptoms.\n\n"
-            f"{context}\n\n"
-            f"User Question: {message}"
+            "You are a friendly, highly professional clinical AI medical expert system assistant.\n"
+            "Help the patient answer their question using the provided clinical context which contains real-time web search insights, symbolic diagnostics, recommended safe medicines, precautions, and contraindications.\n\n"
+            "CRITICAL RULES:\n"
+            "1. You MUST include web search insights and clearly recommend safe medicines based on the context.\n"
+            "2. Highlight any contraindications and patient severity risk.\n"
+            "3. Format your output professionally in clear, distinct sections (e.g. Google Search Insights, Recommended Safe Medications, Care Guidelines & Precautions, Contraindications & Safety Warnings, and Symbolic AI Diagnostics).\n"
+            "4. Keep formatting clean, use standard markdown list points (•) and bold tags (**text**). Avoid complex HTML or excessive emoji symbols. Ensure there are no unrendered asterisks.\n"
+            "5. Always conclude with a professional clinical disclaimer advising them to consult a doctor.\n\n"
+            f"CLINICAL CONTEXT:\n{context}\n\n"
+            f"Patient Question: {message}"
         )
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}"
         headers = {"Content-Type": "application/json"}
@@ -251,6 +395,7 @@ class RAGEngine:
         except Exception as e:
             print(f"[WARN] Gemini API request failed: {e}")
             return None
+
 
     def _history_response(self) -> str:
         if not self.query_processor:

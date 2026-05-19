@@ -69,19 +69,26 @@ class ResultsPage(QWidget):
             lbl_exp.setStyleSheet("color: #475569; font-size: 14px; font-family: monospace; background-color: #F8FAFC; padding: 10px; border-radius: 6px;")
             card_layout.addWidget(lbl_exp)
             
-            # Recommendations
-            details = recommendation_engine.get_details(disease)
+            # Recommendations and Precautions
+            details = recommendation_engine.get_details(disease, diag.get('matched_symptoms'))
             if details['recommendations']:
-                lbl_rec = QLabel("Recommendations: " + ", ".join(details['recommendations']))
+                lbl_rec = QLabel("📋 Care Guidelines: " + ", ".join(details['recommendations']))
                 lbl_rec.setWordWrap(True)
-                lbl_rec.setStyleSheet("color: #10B981; font-weight: 500; font-size: 14px; margin-top: 10px;")
+                lbl_rec.setStyleSheet("color: #10B981; font-weight: 600; font-size: 14px; margin-top: 10px;")
                 card_layout.addWidget(lbl_rec)
                 
+            if details['precautions']:
+                lbl_prec = QLabel("🛡️ Precautions: " + ", ".join(details['precautions']))
+                lbl_prec.setWordWrap(True)
+                lbl_prec.setStyleSheet("color: #E2E8F0; font-weight: 600; font-size: 14px; color: #D97706; margin-top: 4px;")
+                card_layout.addWidget(lbl_prec)
+                
             if details['medicines']:
-                lbl_med = QLabel("Suggested Medicines: " + ", ".join(details['medicines']))
+                lbl_med = QLabel("💊 Recommended Safe Medicines: " + ", ".join(details['medicines']))
                 lbl_med.setWordWrap(True)
-                lbl_med.setStyleSheet("color: #8B5CF6; font-weight: 500; font-size: 14px;")
+                lbl_med.setStyleSheet("color: #8B5CF6; font-weight: 600; font-size: 14px; margin-top: 4px;")
                 card_layout.addWidget(lbl_med)
+
                 
             self.container_layout.addWidget(card)
             self.container_layout.addSpacing(15)

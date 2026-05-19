@@ -53,45 +53,15 @@ def diagnose():
     if not symptoms:
         return jsonify({'success': False, 'message': 'No symptoms provided.'}), 400
         
-    if not inference_engine or not inference_engine.connector.available:
-        # Graceful fallback: If Prolog isn't installed in Vercel container, 
-        # let's run a fallback pythonic matching so the user gets a working diagnosis!
-        from backend.rag_engine import MEDICAL_CORPUS
-        diagnoses = []
-        for disease, info in MEDICAL_CORPUS.items():
-            # Normalize symptoms by replacing spaces with underscores and lowercase
-            normalized_db_symptoms = {s.replace(" ", "_").lower() for s in info['symptoms']}
-            normalized_query_symptoms = {s.replace(" ", "_").lower() for s in symptoms}
-            
-            matches = normalized_query_symptoms.intersection(normalized_db_symptoms)
-            if matches:
-                conf = (len(matches) / max(len(info['symptoms']), 1)) * 100
-                
-                # Format matched symptoms back to nice display strings
-                display_matches = [m.replace("_", " ").title() for m in matches]
-                
-                diagnoses.append({
-                    'disease': disease,
-                    'confidence': conf,
-                    'matched_symptoms': list(matches),
-                    'explanation': f"🔍 Pythonic Diagnostic Trace\n==============================================\nDeducted Target: {disease.upper()}\n\nPatient Symptoms Triggered:\n" + "\n".join([f"  ✔ {m} -> Confirmed Present" for m in display_matches]),
-                    'details': {
-                        'recommendations': info['recommendations'],
-                        'medicines': info['medicines'],
-                        'precautions': info['precautions']
-                    }
-                })
-        diagnoses.sort(key=lambda x: x['confidence'], reverse=True)
-        
-        if diagnoses:
-            top = diagnoses[0]
-            query_processor.log_query(symptoms, top["disease"], top["confidence"])
-            
-        return jsonify({
-            'success': True,
-            'diagnoses': diagnoses
-        })
-        
+    # Standardize engines
+    global inference_engine, explanation_engine, recommendation_engine
+    if not inference_engine:
+        inference_engine = InferenceEngine()
+    if not explanation_engine:
+        explanation_engine = ExplanationEngine()
+    if not recommendation_engine:
+        recommendation_engine = RecommendationEngine()
+
     diagnoses = inference_engine.diagnose(symptoms)
     
     # Log to DB
@@ -102,12 +72,13 @@ def diagnose():
         # Add rich explanations and recommendations
         for d in diagnoses:
             d['explanation'] = explanation_engine.generate_explanation(d)
-            d['details'] = recommendation_engine.get_details(d['disease'])
+            d['details'] = recommendation_engine.get_details(d['disease'], symptoms)
             
     return jsonify({
         'success': True,
         'diagnoses': diagnoses
     })
+
 
 @app.route('/api/chat', methods=['POST'])
 def chat():

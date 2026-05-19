@@ -24,6 +24,43 @@ class ChatWorker(QThread):
         self.response_ready.emit(reply)
 
 
+import re
+
+def markdown_to_html(text: str) -> str:
+    # Escape HTML to prevent injection issues
+    html = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    
+    # Bold: **text** -> <b>text</b>
+    html = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", html)
+    
+    # Italic: *text* -> <i>text</i>
+    html = re.sub(r"\*(.*?)\*", r"<i>\1</i>", html)
+    
+    # Lists
+    lines = []
+    in_list = False
+    for line in html.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("• ") or stripped.startswith("- ") or stripped.startswith("* "):
+            content = stripped[2:]
+            if not in_list:
+                lines.append("<ul style='margin-top: 2px; margin-bottom: 2px; padding-left: 20px;'>")
+                in_list = True
+            lines.append(f"<li>{content}</li>")
+        else:
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(line)
+    if in_list:
+        lines.append("</ul>")
+        
+    html = "<br>".join(lines)
+    # Double newlines into spacing
+    html = html.replace("<br><br>", "<br><div style='height: 8px;'></div>")
+    return html
+
+
 # ── Individual message bubble ─────────────────────────────────────────────────
 class MessageBubble(QFrame):
     def __init__(self, text: str, is_user: bool):
@@ -31,13 +68,15 @@ class MessageBubble(QFrame):
         self.setWordWrap = True
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setContentsMargins(16, 12, 16, 12)
 
-        lbl = QLabel(text)
+        formatted_text = markdown_to_html(text)
+        lbl = QLabel(formatted_text)
         lbl.setWordWrap(True)
-        lbl.setFont(QFont("Segoe UI", 13))
+        lbl.setFont(QFont("Segoe UI", 12))
         lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        lbl.setOpenExternalLinks(False)
+        lbl.setOpenExternalLinks(True)
+        lbl.setTextFormat(Qt.RichText)
 
         if is_user:
             self.setStyleSheet("""
@@ -61,6 +100,7 @@ class MessageBubble(QFrame):
             lbl.setStyleSheet("color: #1E293B; background: transparent;")
 
         layout.addWidget(lbl)
+
 
 
 class ChatbotPage(QWidget):

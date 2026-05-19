@@ -9,14 +9,14 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
 TABS = [
-    ("🏠", "Dashboard"),
-    ("🩺", "Diagnosis"),
-    ("🤖", "AI Chatbot"),
-    ("📊", "AI Analysis"),
-    ("📋", "Reports"),
-    ("📚", "Knowledge Base"),
-    ("🕐", "Query History"),
-    ("⚙️", "Settings"),
+    "Dashboard Overview",
+    "Clinical Diagnostics",
+    "AI Chatbot Assistant",
+    "Diagnostic Analytics",
+    "Clinical Reports",
+    "Knowledge Base",
+    "Query History",
+    "System Settings",
 ]
 
 
@@ -61,18 +61,18 @@ class Sidebar(QWidget):
         nav_layout.setContentsMargins(12, 16, 12, 16)
         nav_layout.setSpacing(4)
 
-        for i, (icon, text) in enumerate(TABS):
-            btn = QPushButton(f"  {icon}  {text}")
+        for i, text in enumerate(TABS):
+            btn = QPushButton(f"  {text}")
             btn.setCheckable(True)
             btn.setChecked(i == 0)
             btn.setFixedHeight(44)
-            btn.setFont(QFont("Segoe UI", 13))
+            btn.setFont(QFont("Segoe UI", 12))
             btn.setStyleSheet("""
                 QPushButton {
                     text-align: left;
                     border: none;
                     border-radius: 8px;
-                    padding-left: 12px;
+                    padding-left: 16px;
                     color: #64748B;
                     background-color: transparent;
                     font-weight: 500;
@@ -88,6 +88,7 @@ class Sidebar(QWidget):
                     border-left: 3px solid #2563EB;
                 }
             """)
+
             btn.clicked.connect(lambda _, idx=i: self.on_tab_clicked(idx))
             self.buttons.append(btn)
             nav_layout.addWidget(btn)
